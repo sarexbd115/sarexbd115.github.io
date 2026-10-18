@@ -560,6 +560,7 @@
 
   <!-- পণ্যের বিস্তারিত (নতুন) -->
   <script>
+  window.addEventListener("load", function () {
   window.showOrderSuccess = function (s) {
     const esc = function (v) { return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
     const money = function (n) { return "৳" + Number(n || 0).toLocaleString("en-US"); };
@@ -584,6 +585,7 @@
     document.getElementById("tyClose").addEventListener("click", function () { div.remove(); });
     div.addEventListener("click", function (e) { if (e.target === div) div.remove(); });
   };
+  });
 </script>
 <div id="lightbox" class="lb" hidden><button class="lb-x" type="button" id="lbClose" aria-label="বন্ধ করুন">×</button><img id="lbImg" alt=""></div>
 
@@ -1729,4 +1731,4 @@
           customMode = !customMode;
           if (customMode) chosen = "";
           body.querySelectorAll("[data-size]").forEach(function (b) { b.classList.remove("on"); });
-          document.getElementById("dmCustom").style.display 
+      
