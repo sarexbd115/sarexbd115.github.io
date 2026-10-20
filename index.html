@@ -233,6 +233,30 @@
     .ty-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
     .ty-btns .btn { min-width: 160px; }
 
+    /* ---------- নতুন প্রিমিয়াম চেহারা ---------- */
+    .hero { background: radial-gradient(ellipse at 75% 30%, rgba(212, 175, 55, 0.22), transparent 55%), linear-gradient(180deg, #0d0d0f 0%, #070708 100%); border-bottom: 1px solid rgba(212, 175, 55, 0.35); }
+    .hero .eyebrow { letter-spacing: 6px; }
+    .hero h1 { text-shadow: 0 6px 30px rgba(0, 0, 0, 0.6); }
+
+    .feat-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; background: #0b0b0c; border-bottom: 1px solid rgba(212, 175, 55, 0.25); }
+    .fs-item { display: flex; align-items: center; gap: 10px; padding: 16px 14px; border-right: 1px solid rgba(212, 175, 55, 0.18); }
+    .fs-item:last-child { border-right: 0; }
+    .fs-ic { width: 42px; height: 42px; flex: none; border-radius: 50%; border: 1px solid var(--gold); display: grid; place-items: center; font-size: 18px; background: #111; }
+    .fs-item b { display: block; color: #fff; font-size: 13px; font-weight: 600; line-height: 1.35; }
+    .fs-item small { display: block; color: var(--muted); font-size: 11px; }
+    @media (max-width: 760px) {
+      .feat-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .fs-item:nth-child(2) { border-right: 0; }
+      .fs-item:nth-child(-n+2) { border-bottom: 1px solid rgba(212, 175, 55, 0.18); }
+    }
+
+    body #products .product-card { background: linear-gradient(180deg, #131316 0%, #0c0c0e 100%); border-color: rgba(212, 175, 55, 0.22); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
+    body #products .product-card:hover { box-shadow: 0 14px 34px rgba(212, 175, 55, 0.18); }
+    body #products .product-card h3 + p { font-size: 22px; }
+
+    .site-header { border-bottom: 1px solid rgba(212, 175, 55, 0.35); }
+    footer { border-top: 1px solid rgba(212, 175, 55, 0.35); background: linear-gradient(180deg, #0a0a0b 0%, #050505 100%); }
+
     /* ---------- Wishlist ---------- */
     .wish-btn { position: absolute; top: 12px; right: 12px; z-index: 3; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--gold); background: rgba(0, 0, 0, 0.6); color: #fff; font-size: 18px; cursor: pointer; }
     .wish-btn.on { color: var(--red); border-color: var(--red); }
@@ -381,6 +405,13 @@
     </section>
 
     <div id="flashBar" class="flash-bar" hidden><span id="flashText"></span> <b id="flashCount"></b></div>
+
+    <div class="feat-strip">
+      <div class="fs-item"><span class="fs-ic">🐄</span><div><b>100% আসল চামড়া</b><small>100% Genuine Leather</small></div></div>
+      <div class="fs-item"><span class="fs-ic">🏅</span><div><b>প্রিমিয়াম কোয়ালিটি</b><small>Premium Quality</small></div></div>
+      <div class="fs-item"><span class="fs-ic">🚚</span><div><b>দ্রুত ও নির্ভরযোগ্য ডেলিভারি</b><small>Fast &amp; Reliable Delivery</small></div></div>
+      <div class="fs-item"><span class="fs-ic">🔒</span><div><b>নিরাপদ পেমেন্ট</b><small>Secure Payment</small></div></div>
+    </div>
 
     <!-- CATEGORIES -->
     <section class="block alt">
@@ -1680,55 +1711,4 @@
 
       // কার্ডে ক্লিক: পুরনো popup খুলবে না, নতুন বিস্তারিত খুলবে
       document.getElementById("products").addEventListener("click", function (e) {
-        if (e.target.closest(".btn, .wish-btn, .cr-more")) return;
-        const card = e.target.closest(".product-card");
-        if (!card) return;
-        const h3 = card.querySelector("h3");
-        const name = h3 ? h3.textContent.trim() : "";
-        const p = (typeof products !== "undefined" ? products : []).find(function (x) { return x.name === name; });
-        if (!p) return;
-        e.stopPropagation();
-        e.preventDefault();
-        openDetail(p.id);
-      }, true);
-
-      modal.addEventListener("click", function (e) {
-        const mi = e.target.closest("#dmMain img");
-        if (mi) {
-          document.getElementById("lbImg").src = mi.src;
-          document.getElementById("lightbox").hidden = false;
-          return;
-        }
-        if (e.target === modal || e.target.closest("[data-dclose]")) { close(); return; }
-        const tab = e.target.closest("[data-tab]");
-        if (tab) {
-          body.querySelectorAll("[data-tab]").forEach(function (b) { b.classList.toggle("on", b === tab); });
-          const t = tab.dataset.tab;
-          document.getElementById("dmPane").hidden = t !== "desc";
-          document.getElementById("dmSpecs").hidden = t !== "spec";
-          document.getElementById("dmRevs").hidden = t !== "rev";
-          return;
-        }
-        if (e.target.closest("#dmGoOrder")) { close(); location.hash = "#order"; return; }
-        const co = e.target.closest("[data-color]");
-        if (co) {
-          chosenColor = co.dataset.color;
-          body.querySelectorAll("[data-color]").forEach(function (b) { b.classList.toggle("on", b.dataset.color === chosenColor); });
-          const cm = document.getElementById("dmColMsg");
-          if (cm) cm.textContent = "";
-          return;
-        }
-        const sz = e.target.closest("[data-size]");
-        if (sz) {
-          chosen = sz.dataset.size; customMode = false;
-          body.querySelectorAll("[data-size]").forEach(function (b) { b.classList.toggle("on", b.dataset.size === chosen); });
-          document.getElementById("dmCustomBtn").classList.remove("on");
-          document.getElementById("dmCustom").style.display = "none";
-          document.getElementById("dmMsg").textContent = "";
-          return;
-        }
-        if (e.target.closest("#dmCustomBtn")) {
-          customMode = !customMode;
-          if (customMode) chosen = "";
-          body.querySelectorAll("[data-size]").forEach(function (b) { b.classList.remove("on"); });
-      
+        if (e.target.closest(".btn, .wish-
