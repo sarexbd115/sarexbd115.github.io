@@ -1112,13 +1112,13 @@
       async function loadCatalog() {
         const res = await supabaseClient
           .from("products")
-          .select("id,name,price,discount_percent,stock,image_url,active,size_enabled")
+          .select("id,name,price,discount_percent,stock,image_url,active,size_enabled,size_type")
           .eq("active", true);
         if (!res.error && res.data) {
           const sz = await supabaseClient.from("product_sizes").select("product_id").eq("active", true);
           const withSizes = new Set((sz.data || []).map(function (x) { return String(x.product_id); }));
           catalog = res.data.map(function (p) {
-            return Object.assign({}, p, { size_enabled: !!p.size_enabled || withSizes.has(String(p.id)) });
+            return Object.assign({}, p, { size_enabled: !!p.size_enabled || withSizes.has(String(p.id)) || (!!p.size_type && p.size_type !== "none") });
           });
         }
         renderCart();
@@ -1577,8 +1577,13 @@
       async function renderSizeBox(p) {
         const box = document.getElementById("dmChips");
         if (!box) return;
-        const r = await supabaseClient.from("product_sizes").select("label").eq("product_id", p.id).eq("active", true).order("sort_order");
-        const list = r.data || [];
+        let list;
+        if (p.sizeList) {
+          list = p.sizeList.map(function (l) { return { label: l }; });
+        } else {
+          const r = await supabaseClient.from("product_sizes").select("label").eq("product_id", p.id).eq("active", true).order("sort_order");
+          list = r.data || [];
+        }
         box.innerHTML = list.length
           ? list.map(function (x) { return '<button class="dm-chip" type="button" data-size="' + esc(x.label) + '">' + esc(x.label) + '</button>'; }).join("")
           : '<span style="color:var(--muted);font-size:14px">এই পণ্যের সাইজ এখনো যোগ করা হয়নি। নিজের মাপ দিন।</span>';
@@ -1698,11 +1703,6 @@
         cur.faqs = fr.data || [];
         const po = await supabaseClient.from("product_options").select("show_size_chart").eq("product_id", id).maybeSingle();
         cur.show_size_chart = po.data ? po.data.show_size_chart : true;
-        const szRows = await supabaseClient.from("product_sizes").select("label").eq("product_id", id).eq("active", true).limit(1);
-        if (szRows.data && szRows.data.length) cur.size_enabled = true;
-        qty = 1;
-        chosen = ""; customMode = false; customText = ""; chosenColor = "";
-        paint(cur);
-        if (cur.size_enabled) renderSizeBox(cur);
-        modal.hidden = false;
-        document.b
+        const szRows = await supabaseClient.from("product_sizes").select("label").eq("product_id", id).eq("active", true).order("sort_order");
+        const PRESET = {
+          belt: ["30 inch", "32 inch", "34 inch", "
