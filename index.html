@@ -1027,6 +1027,7 @@
         const t = String((error && error.message) || "");
         if (t.indexOf("out_of_stock") >= 0 || t.indexOf("product_unavailable") >= 0)
           return "দুঃখিত, এই পণ্যটি এখন অর্ডার নেওয়া যাচ্ছে না। অন্য পণ্য বেছে নিন বা একটু পরে আবার চেষ্টা করুন।";
+        if (t.indexOf("size_required") >= 0) return "অর্ডার করার আগে সাইজ নির্বাচন করুন।";
         if (t.indexOf("too_many_orders") >= 0) return "অল্প সময়ে অনেকগুলো অর্ডার হয়েছে। কিছুক্ষণ পরে চেষ্টা করুন।";
         if (t.indexOf("invalid_coupon") >= 0) return "কুপন কোডটি সঠিক নয় বা মেয়াদ শেষ।";
         if (t.indexOf("coupon_used") >= 0) return "এই ফোন নম্বরে কুপনটি আগেই ব্যবহার করা হয়েছে।";
@@ -1703,6 +1704,4 @@
         cur.faqs = fr.data || [];
         const po = await supabaseClient.from("product_options").select("show_size_chart").eq("product_id", id).maybeSingle();
         cur.show_size_chart = po.data ? po.data.show_size_chart : true;
-        const szRows = await supabaseClient.from("product_sizes").select("label").eq("product_id", id).eq("active", true).order("sort_order");
-        const PRESET = {
-          belt: ["30 inch", "32 inch", "34 inch", "
+        const szRows = await supabaseClient.from("product_sizes").select("label").eq("product_id", id).eq("active", true).order(
