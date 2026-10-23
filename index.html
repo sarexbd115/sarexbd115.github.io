@@ -257,6 +257,15 @@
     .site-header { border-bottom: 1px solid rgba(212, 175, 55, 0.35); }
     footer { border-top: 1px solid rgba(212, 175, 55, 0.35); background: linear-gradient(180deg, #0a0a0b 0%, #050505 100%); }
 
+    .bnav { display: none; }
+    @media (max-width: 760px) {
+      body { padding-bottom: 72px; }
+      .bnav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 90; background: #050505; border-top: 1px solid rgba(212, 175, 55, 0.4); justify-content: space-around; padding: 8px 4px calc(8px + env(safe-area-inset-bottom, 0px)); }
+      .bnav a { flex: 1; text-align: center; color: var(--gold2); text-decoration: none; font-size: 11px; }
+      .bnav a span { display: block; font-size: 18px; }
+      .bnav a b { color: #fff; }
+    }
+
     /* ---------- Wishlist ---------- */
     .wish-btn { position: absolute; top: 12px; right: 12px; z-index: 3; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--gold); background: rgba(0, 0, 0, 0.6); color: #fff; font-size: 18px; cursor: pointer; }
     .wish-btn.on { color: var(--red); border-color: var(--red); }
@@ -1638,6 +1647,8 @@
               '<div class="dm-btns">' +
                 '<button class="btn dark" type="button" id="dmAdd"' + (n <= 0 ? ' disabled' : '') + '>🛒 কার্টে যোগ করুন</button>' +
                 '<button class="btn" type="button" id="dmBuy"' + (n <= 0 ? ' disabled' : '') + '>এখনই কিনুন →</button>' +
+                '<a class="btn dark" target="_blank" rel="noopener" href="https://wa.me/8801610244533?text=' + encodeURIComponent('আসসালামু আলাইকুম। আমি ' + p.name + ' অর্ডার করতে চাই।') + '">WhatsApp-এ অর্ডার</a>' +
+                '<a class="btn dark" href="tel:+8801610244533">📞 কল করুন</a>' +
               '</div>' +
               '<div class="pm-perks" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;font-size:12px;color:#ccc">' +
                 '<div><span style="display:block;font-size:20px">🚚</span>ফ্রি ডেলিভারি</div>' +
@@ -1695,13 +1706,4 @@
       async function openDetail(id) {
         const res = await supabaseClient.from("products").select("*").eq("id", id).single();
         if (res.error || !res.data) return;
-        cur = res.data;
-        const di = await supabaseClient.from("product_info").select("delivery_time").eq("product_id", id).maybeSingle();
-        if (di.data) cur.delivery_time = di.data.delivery_time;
-        const cr = await supabaseClient.from("product_colors").select("name,hex").eq("product_id", id).order("sort_order");
-        cur.colors = cr.data || [];
-        const fr = await supabaseClient.from("product_faqs").select("question,answer").eq("product_id", id).order("sort_order");
-        cur.faqs = fr.data || [];
-        const po = await supabaseClient.from("product_options").select("show_size_chart").eq("product_id", id).maybeSingle();
-        cur.show_size_chart = po.data ? po.data.show_size_chart : true;
-        const szRows = await supabaseClient.from("product_sizes").select("label").eq("product_id", id).eq("active", true).order(
+     
