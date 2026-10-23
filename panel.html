@@ -235,6 +235,8 @@ summary{list-style:none}
     <label>প্রশ্নোত্তর (FAQ, ঐচ্ছিক)</label>
     <div id="pfFaqList"></div>
     <div class="btnrow"><button class="btn dark" type="button" data-act="faqAdd">＋ প্রশ্ন যোগ</button></div>
+    <label for="pfWarranty">ওয়ারেন্টি (ঐচ্ছিক, যেমন 1 Year Warranty)</label>
+    <input id="pfWarranty" maxlength="80" placeholder="1 Year Warranty">
     <label for="pfDeliveryTime">ডেলিভারি সময় (যেমন 2 to 3 Days, ঐচ্ছিক)</label>
     <input id="pfDeliveryTime" maxlength="60" placeholder="2 to 3 Days">
     <label for="pfSku">কোড / SKU (ঐচ্ছিক)</label>
@@ -736,6 +738,8 @@ function renderProductForm(arg){
  if(p)db.from("product_options").select("show_size_chart").eq("product_id",p.id).maybeSingle().then(function(r){if(r.data)$("pfSizeChart").checked=r.data.show_size_chart});
  $("pfSku").value=p?.sku||"";
  $("pfDeliveryTime").value="";
+ $("pfWarranty").value="";
+ if(p)db.from("product_warranty").select("warranty").eq("product_id",p.id).maybeSingle().then(function(r){if(r.data)$("pfWarranty").value=r.data.warranty||""});
  if(p)db.from("product_info").select("delivery_time").eq("product_id",p.id).maybeSingle().then(function(r){if(r.data)$("pfDeliveryTime").value=r.data.delivery_time||""});
  $("pfHighlights").value=p?.highlights||"";
  $("pfDesc").value=p?.description||"";
@@ -810,6 +814,10 @@ $("productForm").addEventListener("submit",async e=>{
   const pidInfo=id||(result.data&&result.data[0]&&result.data[0].id);
   await saveSizeRows(pidInfo);
   await saveColorFaq(pidInfo);
+  if(pidInfo){
+   const wr=await db.from("product_warranty").upsert([{product_id:pidInfo,warranty:$("pfWarranty").value.trim()}],{onConflict:"product_id"});
+   if(wr.error)throw wr.error;
+  }
   if(pidInfo){
    const po=await db.from("product_options").upsert([{product_id:pidInfo,show_size_chart:$("pfSizeChart").checked}],{onConflict:"product_id"});
    if(po.error)throw po.error;
