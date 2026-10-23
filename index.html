@@ -266,6 +266,17 @@
       .bnav a b { color: #fff; }
     }
 
+    .foot-info { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 14px 0 6px; }
+    .foot-info a { border: 1px solid var(--gold); color: var(--gold2); border-radius: 99px; padding: 8px 14px; font-size: 13px; text-decoration: none; cursor: pointer; }
+    .info-ov { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.9); z-index: 750; display: none; align-items: center; justify-content: center; padding: 16px; }
+    .info-ov.open { display: flex; }
+    .info-box { background: #121214; border: 1px solid var(--gold); border-radius: 16px; max-width: 620px; width: 100%; max-height: 88vh; overflow: auto; padding: 24px; position: relative; color: #ddd; line-height: 1.85; }
+    .info-box h2 { font-family: Georgia, serif; color: var(--gold2); margin: 0 0 12px; font-size: 26px; }
+    .info-box p { margin: 8px 0; }
+    .info-x { position: absolute; top: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--gold); background: #111; color: var(--gold); font-size: 24px; cursor: pointer; }
+    .info-box input { width: 100%; background: #0c0c0c; color: #fff; border: 1px solid var(--field-line); border-radius: 10px; padding: 12px; font: inherit; margin: 6px 0 10px; }
+    .info-box .res { margin-top: 12px; padding: 12px; border: 1px dashed var(--gold); border-radius: 10px; color: #eee; }
+
     /* ---------- Wishlist ---------- */
     .wish-btn { position: absolute; top: 12px; right: 12px; z-index: 3; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--gold); background: rgba(0, 0, 0, 0.6); color: #fff; font-size: 18px; cursor: pointer; }
     .wish-btn.on { color: var(--red); border-color: var(--red); }
@@ -566,7 +577,16 @@
       <a class="fbtn" href="https://wa.me/8801610244533" target="_blank" rel="noopener noreferrer"><svg class="fsvg wa" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>WhatsApp</a>
       <a class="fbtn" href="https://www.facebook.com/profile.php?id=100087606876298" target="_blank" rel="noopener noreferrer"><svg class="fsvg fb" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>Facebook</a>
     </div>
-  </footer>
+    <div class="foot-info">
+    <a data-info="privacy">Privacy Policy</a>
+    <a data-info="delivery">Delivery Policy</a>
+    <a data-info="returns">Return Policy</a>
+    <a data-info="track">অর্ডার ট্র্যাক</a>
+    <a href="#about">যোগাযোগ</a>
+  </div>
+</footer>
+
+<div class="info-ov" id="infoOv"><div class="info-box" id="infoBox"></div></div>
 
   <!-- পণ্যের বিস্তারিত popup -->
   <div id="productModal" class="modal" hidden>
@@ -1678,203 +1698,4 @@
         const box = document.getElementById("dmRelated");
         if (!box || !p.category) { if (box) box.innerHTML = ""; return; }
         const r = await supabaseClient.from("products")
-          .select("id,name,price,discount_percent,image_url")
-          .eq("active", true).eq("category", p.category).neq("id", p.id).limit(4);
-        box.innerHTML = (r.data || []).map(function (x) {
-          return '<button class="dm-rel" type="button" data-open="' + x.id + '">' +
-            (x.image_url ? '<img src="' + esc(x.image_url) + '" alt="">' : '<div style="aspect-ratio:1;display:grid;place-items:center;font-size:30px">👜</div>') +
-            '<b>' + esc(x.name) + '</b><span>' + money(unitOf(x)) + '</span></button>';
-        }).join("");
-      }
-
-      async function loadReviews(p) {
-        const box = document.getElementById("dmRevs");
-        const r = await supabaseClient.from("reviews")
-          .select("reviewer_name,rating,review_text")
-          .eq("status", "Approved").eq("product_id", p.id)
-          .order("created_at", { ascending: false });
-        const list = r.data || [];
-        box.innerHTML = '<div class="dm-pane" style="white-space:normal">' +
-          (list.length ? list.map(function (x) {
-            return '<div class="cr-item"><b>' + esc(x.reviewer_name) + '</b><span>' + starsOf(x.rating) + '</span><p>' + esc(x.review_text) + '</p></div>';
-          }).join("") : '<p>এখনো কোনো রিভিউ নেই।</p>') +
-          '<button type="button" class="btn small" id="dmWriteRev" style="margin-top:10px">✎ এই পণ্যের রিভিউ লিখুন</button></div>';
-        const tabBtn = body.querySelector('[data-tab="rev"]');
-        if (tabBtn) tabBtn.textContent = "রিভিউ (" + list.length + ")";
-      }
-
-      async function openDetail(id) {
-        const res = await supabaseClient.from("products").select("*").eq("id", id).single();
-        if (res.error || !res.data) return;
-        cur = res.data;
-        const di = await supabaseClient.from("product_info").select("delivery_time").eq("product_id", id).maybeSingle();
-        if (di.data) cur.delivery_time = di.data.delivery_time;
-        const cr = await supabaseClient.from("product_colors").select("name,hex").eq("product_id", id).order("sort_order");
-        cur.colors = cr.data || [];
-        const fr = await supabaseClient.from("product_faqs").select("question,answer").eq("product_id", id).order("sort_order");
-        cur.faqs = fr.data || [];
-        const po = await supabaseClient.from("product_options").select("show_size_chart").eq("product_id", id).maybeSingle();
-        cur.show_size_chart = po.data ? po.data.show_size_chart : true;
-        const szRows = await supabaseClient.from("product_sizes").select("label").eq("product_id", id).eq("active", true).order("sort_order");
-        const PRESET = {
-          belt: ["30 inch", "32 inch", "34 inch", "36 inch", "38 inch", "40 inch"],
-          shoe: ["39", "40", "41", "42", "43", "44"],
-          apparel: ["S", "M", "L", "XL", "XXL"]
-        };
-        if (szRows.data && szRows.data.length) {
-          cur.size_enabled = true;
-          cur.sizeList = szRows.data.map(function (x) { return x.label; });
-        } else if (PRESET[cur.size_type]) {
-          cur.size_enabled = true;
-          cur.sizeList = PRESET[cur.size_type];
-        }
-        qty = 1;
-        chosen = ""; customMode = false; customText = ""; chosenColor = "";
-        paint(cur);
-        if (cur.size_enabled) renderSizeBox(cur);
-        modal.hidden = false;
-        document.body.style.overflow = "hidden";
-        modal.scrollTop = 0;
-        const bx = modal.querySelector(".dm-box");
-        if (bx) bx.scrollTop = 0;
-        loadRelated(cur);
-        loadReviews(cur);
-        loadPolicy().then(function (t) {
-          const el = document.getElementById("dmPolicy");
-          if (el) el.textContent = "রিটার্ন ও ডেলিভারি নীতি\n" + t;
-        });
-      }
-
-      // কার্ডে ক্লিক: পুরনো popup খুলবে না, নতুন বিস্তারিত খুলবে
-      document.getElementById("products").addEventListener("click", function (e) {
-        if (e.target.closest(".btn, .wish-btn, .cr-more")) return;
-        const card = e.target.closest(".product-card");
-        if (!card) return;
-        e.stopPropagation();
-        e.preventDefault();
-        const h3 = card.querySelector("h3");
-        const name = h3 ? h3.textContent.trim() : "";
-        const known = (typeof products !== "undefined" ? products : []).find(function (x) { return x.name === name; });
-        if (known) { openDetail(known.id); return; }
-        supabaseClient.from("products").select("id").eq("name", name).limit(1).then(function (r) {
-          if (r.data && r.data[0]) openDetail(r.data[0].id);
-        });
-      }, true);
-
-      modal.addEventListener("click", function (e) {
-        const mi = e.target.closest("#dmMain img");
-        if (mi) {
-          document.getElementById("lbImg").src = mi.src;
-          document.getElementById("lightbox").hidden = false;
-          return;
-        }
-        if (e.target === modal || e.target.closest("[data-dclose]")) { close(); return; }
-        const tab = e.target.closest("[data-tab]");
-        if (tab) {
-          body.querySelectorAll("[data-tab]").forEach(function (b) { b.classList.toggle("on", b === tab); });
-          const t = tab.dataset.tab;
-          document.getElementById("dmPane").hidden = t !== "desc";
-          document.getElementById("dmSpecs").hidden = t !== "spec";
-          document.getElementById("dmRevs").hidden = t !== "rev";
-          return;
-        }
-        if (e.target.closest("#dmGoOrder")) { close(); location.hash = "#order"; return; }
-        const co = e.target.closest("[data-color]");
-        if (co) {
-          chosenColor = co.dataset.color;
-          body.querySelectorAll("[data-color]").forEach(function (b) { b.classList.toggle("on", b.dataset.color === chosenColor); });
-          const cm = document.getElementById("dmColMsg");
-          if (cm) cm.textContent = "";
-          return;
-        }
-        const sz = e.target.closest("[data-size]");
-        if (sz) {
-          chosen = sz.dataset.size; customMode = false;
-          body.querySelectorAll("[data-size]").forEach(function (b) { b.classList.toggle("on", b.dataset.size === chosen); });
-          document.getElementById("dmCustomBtn").classList.remove("on");
-          document.getElementById("dmCustom").style.display = "none";
-          document.getElementById("dmMsg").textContent = "";
-          return;
-        }
-        if (e.target.closest("#dmCustomBtn")) {
-          customMode = !customMode;
-          if (customMode) chosen = "";
-          body.querySelectorAll("[data-size]").forEach(function (b) { b.classList.remove("on"); });
-          document.getElementById("dmCustom").style.display = customMode ? "block" : "none";
-          document.getElementById("dmCustomBtn").classList.toggle("on", customMode);
-          document.getElementById("dmMsg").textContent = "";
-          return;
-        }
-        if (e.target.closest("#dmChartBtn")) {
-          const ch = document.getElementById("dmChart");
-          ch.hidden = !ch.hidden;
-          ch.textContent = chartText(cur && cur.size_type);
-          return;
-        }
-        const q = e.target.closest("[data-q]");
-        if (q && cur) {
-          const max = 50;
-          qty = Math.max(1, Math.min(max, qty + Number(q.dataset.q)));
-          document.getElementById("dmQty").textContent = qty;
-          return;
-        }
-        const th = e.target.closest("[data-thumb]");
-        if (th) {
-          document.getElementById("dmMain").innerHTML = '<img src="' + esc(th.dataset.thumb) + '" alt="">';
-          return;
-        }
-        if (e.target.closest("#dmAdd") && cur) {
-          if (!sizeOk()) return;
-          window.addToCart(cur.id, qty, selOpt(), customMode ? customText.trim() : "");
-          const b = document.getElementById("dmAdd");
-          b.textContent = "✓ কার্টে যোগ হয়েছে";
-          setTimeout(function () { b.textContent = "🛒 কার্টে যোগ করুন"; }, 1500);
-          return;
-        }
-        if (e.target.closest("#dmBuy") && cur) {
-          if (!sizeOk()) return;
-          window.addToCart(cur.id, qty, selOpt(), customMode ? customText.trim() : "");
-          close();
-          location.hash = "#order";
-          setTimeout(function () {
-            const o = document.getElementById("order");
-            if (o) o.scrollIntoView({ behavior: "smooth" });
-          }, 250);
-          return;
-        }
-        const rel = e.target.closest("[data-open]");
-        if (rel) { openDetail(rel.dataset.open); return; }
-        if (e.target.closest("#dmWriteRev") && cur) {
-          close();
-          document.getElementById("reviewProduct").value = String(cur.id);
-          document.getElementById("reviewModal").hidden = false;
-          document.body.style.overflow = "hidden";
-        }
-      });
-
-      document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(); });
-      const lb = document.getElementById("lightbox");
-      lb.addEventListener("click", function () { lb.hidden = true; });
-      modal.addEventListener("input", function (e) { if (e.target && e.target.id === "dmCustom") customText = e.target.value; });
-      window.openProductDetail = openDetail;
-    })();
-  </script>
-  <nav class="bnav">
-    <a href="#home"><span>🏠</span>হোম</a>
-    <a href="#shop"><span>🛍️</span>শপ</a>
-    <a href="#order"><span>🛒</span>কার্ট (<b id="bnCart">0</b>)</a>
-    <a href="#reviews"><span>⭐</span>রিভিউ</a>
-    <a href="#about"><span>ⓘ</span>আমাদের</a>
-  </nav>
-  <script>
-    (function () {
-      const src = document.getElementById("cartBadge");
-      const dst = document.getElementById("bnCart");
-      if (!src || !dst) return;
-      const sync = function () { dst.textContent = src.textContent; };
-      new MutationObserver(sync).observe(src, { childList: true, characterData: true, subtree: true });
-      sync();
-    })();
-  </script>
-</body>
-</html>
+          .select("id,nam
