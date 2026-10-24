@@ -235,6 +235,8 @@ summary{list-style:none}
     <label>প্রশ্নোত্তর (FAQ, ঐচ্ছিক)</label>
     <div id="pfFaqList"></div>
     <div class="btnrow"><button class="btn dark" type="button" data-act="faqAdd">＋ প্রশ্ন যোগ</button></div>
+    <label for="pfOfferEnd">ছাড় কখন শেষ হবে (ঐচ্ছিক, খালি রাখলে কাউন্টডাউন থাকবে না)</label>
+    <input id="pfOfferEnd" type="datetime-local">
     <label for="pfWarranty">ওয়ারেন্টি (ঐচ্ছিক, যেমন 1 Year Warranty)</label>
     <input id="pfWarranty" maxlength="80" placeholder="1 Year Warranty">
     <label for="pfDeliveryTime">ডেলিভারি সময় (যেমন 2 to 3 Days, ঐচ্ছিক)</label>
@@ -739,6 +741,13 @@ function renderProductForm(arg){
  $("pfSku").value=p?.sku||"";
  $("pfDeliveryTime").value="";
  $("pfWarranty").value="";
+ $("pfOfferEnd").value="";
+ if(p)db.from("product_offers").select("ends_at").eq("product_id",p.id).maybeSingle().then(function(r){
+  if(r.data&&r.data.ends_at){
+   const d=new Date(r.data.ends_at), z=function(n){return String(n).padStart(2,"0")};
+   $("pfOfferEnd").value=d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate())+"T"+z(d.getHours())+":"+z(d.getMinutes());
+  }
+ });
  if(p)db.from("product_warranty").select("warranty").eq("product_id",p.id).maybeSingle().then(function(r){if(r.data)$("pfWarranty").value=r.data.warranty||""});
  if(p)db.from("product_info").select("delivery_time").eq("product_id",p.id).maybeSingle().then(function(r){if(r.data)$("pfDeliveryTime").value=r.data.delivery_time||""});
  $("pfHighlights").value=p?.highlights||"";
@@ -814,6 +823,16 @@ $("productForm").addEventListener("submit",async e=>{
   const pidInfo=id||(result.data&&result.data[0]&&result.data[0].id);
   await saveSizeRows(pidInfo);
   await saveColorFaq(pidInfo);
+  if(pidInfo){
+   const ovEnd=$("pfOfferEnd").value;
+   if(ovEnd){
+    const oo=await db.from("product_offers").upsert([{product_id:pidInfo,ends_at:new Date(ovEnd).toISOString()}],{onConflict:"product_id"});
+    if(oo.error)throw oo.error;
+   }else{
+    const od=await db.from("product_offers").delete().eq("product_id",pidInfo);
+    if(od.error)throw od.error;
+   }
+  }
   if(pidInfo){
    const wr=await db.from("product_warranty").upsert([{product_id:pidInfo,warranty:$("pfWarranty").value.trim()}],{onConflict:"product_id"});
    if(wr.error)throw wr.error;
@@ -1239,6 +1258,34 @@ function renderReviews(){
    (ok?'<button class="btn dark" type="button" data-act="reviewHide" data-id="'+id+'">লুকান</button>':'<button class="btn" type="button" data-act="reviewApprove" data-id="'+id+'">অনুমোদন করুন</button>')+
    '<button class="btn dark" type="button" data-act="reviewEdit" data-id="'+id+'">✏️ বদলান</button><button class="btn danger" type="button" data-act="reviewDelete" data-id="'+id+'">মুছুন</button></div></div>';
  }).join("");
+ loadReviewPhotos();
+}
+async function loadReviewPhotos(){
+ const ids=reviewsData.map(r=>r.id);
+ if(!ids.length)return;
+ const {data}=await db.from("review_photos").select("id,review_id,url").in("review_id",ids);
+ (data||[]).forEach(function(ph){
+  const btn=document.querySelector('[data-act="reviewDelete"][data-id="'+ph.review_id+'"]');
+  const card=btn&&btn.closest(".card");
+  if(!card)return;
+  let row=card.querySelector(".rv-ph-row");
+  if(!row){row=document.createElement("div");row.className="rv-ph-row";row.style.cssText="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px";card.appendChild(row);}
+  const w=document.createElement("div");
+  w.innerHTML='<a href="'+esc(ph.url)+'" target="_blank" rel="noopener"><img src="'+esc(ph.url)+'" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid #d4af37"></a><button class="btn danger" type="button" data-act="photoDel" data-id="'+esc(ph.id)+'" style="margin-top:4px;width:100%">ছবি মুছুন</button>';
+  row.appendChild(w);
+ });
+}
+async function photoDel(id){
+ if(!confirm("এই ছবিটি মুছবেন?"))return;
+ const r=await db.from("review_photos").select("url").eq("id",id).maybeSingle();
+ if(r.data&&r.data.url){
+  const part=r.data.url.split("/review-photos/")[1];
+  if(part)await db.storage.from("review-photos").remove([decodeURIComponent(part)]);
+ }
+ const d=await db.from("review_photos").delete().eq("id",id);
+ if(d.error){toast("ছবি মুছতে পারেনি: "+d.error.message,"err",5000);return}
+ toast("ছবি মুছে ফেলা হয়েছে","ok");
+ loadReviews();
 }
 async function setReviewStatus(id,status){
  const {error}=await db.from("reviews").update({status:status}).eq("id",id);
@@ -1505,6 +1552,7 @@ const actions={
  randomCode:()=>{$("cpCode").value=randomCode()},
  saveSite:saveSite,
  galDel:id=>{galleryList.splice(Number(id),1);renderGallery()},
+ photoDel:id=>photoDel(id),
  colorAdd:()=>{colorRows.push({name:"",hex:"#000000"});renderColorRows()},
  colorDel:i=>{colorRows.splice(Number(i),1);renderColorRows()},
  faqAdd:()=>{faqRows.push({q:"",a:""});renderFaqRows()},
