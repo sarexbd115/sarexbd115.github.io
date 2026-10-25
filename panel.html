@@ -307,16 +307,17 @@ summary{list-style:none}
   <!-- পার্টনার -->
   <section id="view-partners" class="view hidden">
    <div class="pagehead"><h2>🤝 পার্টনার</h2></div>
-   <h3 style="margin:10px 0 6px">পার্টনার তালিকা</h3>
-   <div id="pList"></div>
-   <h3 style="margin:18px 0 6px">পণ্যের কমিশন (টাকা)</h3>
-   <div id="pcList"></div>
-   <h3 style="margin:18px 0 6px">সেটিংস (বোনাস, কুপন, সন্দেহজনক অর্ডার)</h3>
-   <div id="pSettings"></div>
-   <h3 style="margin:18px 0 6px">পর্যালোচনার অর্ডার (সন্দেহজনক)</h3>
-   <div id="pRev"></div>
-   <h3 style="margin:18px 0 6px">কার্যক্রমের লগ</h3>
-   <div id="pLog"></div>
+   <div class="chips" id="pTabs" style="margin:8px 0 12px"></div>
+   <div class="ptpane" data-ptab="list"><div id="pList"></div></div>
+   <div class="ptpane" data-ptab="comm" hidden><div id="pcList"></div></div>
+   <div class="ptpane" data-ptab="set" hidden>
+    <h3 style="margin:10px 0 6px">সেটিংস (বোনাস, কুপন, সন্দেহজনক অর্ডার)</h3>
+    <div id="pSettings"></div>
+    <h3 style="margin:18px 0 6px">পর্যালোচনার অর্ডার (সন্দেহজনক)</h3>
+    <div id="pRev"></div>
+    <h3 style="margin:18px 0 6px">কার্যক্রমের লগ</h3>
+    <div id="pLog"></div>
+   </div>
   </section>
 
   <!-- রিপোর্ট -->
@@ -597,6 +598,20 @@ document.addEventListener("click",function(e){
  const b=e.target.closest("[data-alt]");
  if(b)setAltTab(b.dataset.alt);
 });
+const PT_TABS=[["list","🤝 পার্টনার তালিকা"],["comm","💰 পণ্যের কমিশন"],["set","⚙️ সেটিংস"]];
+let ptTab="list";
+function setPTab(t){
+ ptTab=t;
+ document.querySelectorAll(".ptpane").forEach(function(el){el.hidden=el.dataset.ptab!==t});
+ const box=$("pTabs");
+ if(box)box.innerHTML=PT_TABS.map(function(x){
+  return '<button class="chip'+(x[0]===t?' on':'')+'" data-ptab="'+x[0]+'" type="button">'+x[1]+'</button>';
+ }).join("");
+}
+document.addEventListener("click",function(e){
+ const b=e.target.closest("button[data-ptab]");
+ if(b)setPTab(b.dataset.ptab);
+});
 async function loadAlerts(){
  setAltTab(altTab);
  const subs=await db.from("subscribers").select("id,phone,created_at").order("created_at",{ascending:false});
@@ -642,7 +657,7 @@ function route(){
  else if(view==="orderDetail")renderOrderDetail(arg);
  else if(view==="customers")renderCustomers();
  else if(view==="alerts")loadAlerts();
- else if(view==="partners"){loadPartners();loadPartnerExtras();}
+ else if(view==="partners"){setPTab(ptTab);loadPartners();loadPartnerExtras();}
  else if(view==="reports")renderReports();
  else if(view==="reviews")loadReviews();
  else if(view==="coupons")loadCoupons();
@@ -1393,7 +1408,7 @@ async function loadPartners(){
  PD={};
  for(const d of (dl.data||[])){
   const s=await db.storage.from("partner-docs").createSignedUrl(d.path,600);
-  (PD[d.partner_id]=PD[d.partner_id]||[]).push({kind:d.kind,url:s.data?s.data.signedUrl:""});
+  (PD[d.partner_id]=PD[d.partner_id]||[]).push({kind:d.kind,url:fixUrl(s.data?s.data.signedUrl:"")});
  }
  const due={};
  (cm.data||[]).forEach(function(c){ if(c.status==="Pending"||c.status==="Approved"){due[c.partner_id]=(due[c.partner_id]||0)+Number(c.amount)} });
@@ -1456,6 +1471,11 @@ async function showBonus(pid){
 }
 let PV={};
 let PD={};
+function fixUrl(u){
+ if(!u)return "";
+ if(/^https?:/.test(u))return u;
+ return SUPABASE_URL+(u.indexOf("/storage")===0?"":"/storage/v1")+u;
+}
 const DOCLBL={nid_front:"পরিচয়পত্র (সামনে)",nid_back:"পরিচয়পত্র (পেছনে)",selfie:"সেলফি",bkash_proof:"বিকাশ প্রমাণ",social_proof:"সোশ্যাল পেজ"};
 const PTYPE_LBL={personal:"ব্যক্তিগত",group:"গ্রুপ",page:"পেজ",website:"ওয়েবসাইট",youtube:"ইউটিউব/টিকটক"};
 function partnerVerInfo(id){
@@ -1642,181 +1662,4 @@ async function renderContent(){
    if(!file)return;
    if(file.size>MAX_IMAGE_BYTES){toast("ছবির সাইজ ৫ MB-এর কম রাখো।","err");return}
    const key=input.dataset.upload;
-   const ext=(file.name.split(".").pop()||"jpg").replace(/[^a-z0-9]/gi,"").toLowerCase();
-   const path="site/"+key+"-"+Date.now()+"."+ext;
-   toast("ছবি আপলোড হচ্ছে...");
-   const {error:upErr}=await db.storage.from(BUCKET).upload(path,file,{upsert:false,contentType:file.type});
-   if(upErr){toast("ছবি আপলোড হয়নি: "+upErr.message,"err",5000);return}
-   $("s_"+key).value=db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
-   toast("ছবি আপলোড হয়েছে। 'সব সেভ করুন' চাপুন।","ok");
-  });
- });
-}
-
-async function saveSite(){
- const btn=$("siteSave");
- btn.disabled=true;
- const now=new Date().toISOString();
- const rows=SITE_FIELDS.map(([key])=>{
-  const el=document.querySelector('#siteFields [data-key="'+key+'"]');
-  return {key:key,value:el?el.value.trim():"",updated_at:now};
- });
- const {error}=await db.from("site_content").upsert(rows,{onConflict:"key"});
- btn.disabled=false;
- if(error){toast("সেভ হয়নি: "+error.message,"err",5000);return}
- toast("সাইটের লেখা সেভ হয়েছে। সাইট রিফ্রেশ করে দেখুন।","ok",4000);
-}
-
-/* ---------- সেটিংস ---------- */
-function fillSettingsForm(){
- $("setShop").value=S.shopName;
- $("setWa").value=S.whatsapp;
- $("setAddr").value=S.address;
- $("setIn").value=S.deliveryInside;
- $("setOut").value=S.deliveryOutside;
- $("setLow").value=S.lowStock;
-}
-$("settingsForm").addEventListener("submit",async e=>{
- e.preventDefault();
- const next={
-  shopName:$("setShop").value.trim()||DEFAULTS.shopName,
-  whatsapp:$("setWa").value.trim(),
-  address:$("setAddr").value.trim(),
-  deliveryInside:Number($("setIn").value),
-  deliveryOutside:Number($("setOut").value),
-  lowStock:Number($("setLow").value)
- };
- if(["deliveryInside","deliveryOutside","lowStock"].some(k=>!Number.isFinite(next[k])||next[k]<0)){toast("চার্জ ও স্টকের সংখ্যা ০ বা তার বেশি হতে হবে","err");return}
- S=next;
- const saved=persistSettings();
- const {error}=await db.from("shop_settings").upsert([{key:"delivery_dhaka",value:next.deliveryInside},{key:"delivery_outside",value:next.deliveryOutside}],{onConflict:"key"});
- if(error){toast("ডেলিভারি চার্জ সার্ভারে সেভ হয়নি: "+error.message,"err",5000);return}
- toast(saved?"সেটিংস সেভ হয়েছে। ডেলিভারি চার্জ সাইটেও বদলেছে।":"ডেলিভারি চার্জ সেভ হয়েছে; বাকি সেটিংস এই ব্রাউজারে সেভ করা যায়নি।","ok");
-});
-
-/* ---------- নতুন অর্ডারের নোটিফিকেশন ---------- */
-function updateBadge(){
- $("ordersBadge").hidden=!unseen;
- $("ordersBadge").textContent=unseen;
- document.title=(unseen?"("+unseen+") ":"")+"SAREXBD Admin Panel";
-}
-async function checkNewOrders(){
- if(!session)return;
- const {data,error}=await db.from("orders").select("id,created_at,customer_name,total").order("created_at",{ascending:false}).limit(10);
- if(error||!data||!data.length)return;
- const known=ordersAll.length?ordersAll[0].created_at:"";
- const fresh=data.filter(o=>String(o.created_at)>String(known));
- if(!fresh.length)return;
- await loadOrdersAll();
- if(currentView!=="orders")unseen+=fresh.length;
- updateBadge();
- toast("🛒 নতুন অর্ডার: "+fresh.map(o=>"#"+o.id+" "+(o.customer_name||"")+" ("+money(o.total)+")").join(", "),"ok",7000);
- try{if(navigator.vibrate)navigator.vibrate([200,100,200])}catch(e){}
- if(["home","orders","customers","reports"].includes(currentView))route();
-}
-function startPolling(){stopPolling();pollTimer=setInterval(checkNewOrders,60000)}
-function stopPolling(){if(pollTimer){clearInterval(pollTimer);pollTimer=null}}
-
-/* ---------- ক্লিক হ্যান্ডলার ---------- */
-const actions={
- openDrawer:openDrawer,
- closeDrawer:closeDrawer,
- logout:async()=>{await db.auth.signOut()},
- editProduct:id=>go("productForm/"+id),
- toggleProduct:id=>toggleProduct(id),
- deleteProduct:id=>deleteProduct(id),
- bulkApply:()=>{
-  const v=$("bulkDiscount").value.trim();
-  if(v===""){toast("ছাড়ের হার লিখুন","err");return}
-  setAllDiscount(Number(v));
- },
- bulkClear:()=>setAllDiscount(0),
- prodCat:id=>{prodState.cat=id;renderProducts()},
- orderChip:id=>{orderState.status=id;orderState.page=1;renderOrders()},
- moreOrders:()=>{orderState.page++;renderOrders()},
- refreshOrders:async()=>{await Promise.all([loadOrdersAll(),loadProducts()]);renderOrders();toast("অর্ডার নতুন করে আনা হয়েছে","ok")},
- exportCsv:exportCsv,
- updateStatus:(id,btn)=>setOrderStatus(id,$("odStatus").value,btn),
- cancelOrder:(id,btn)=>{if(confirm("অর্ডারটি Cancelled করবে? (স্টক ফেরত আসবে)"))setOrderStatus(id,"Cancelled",btn)},
- invoice:id=>{const o=ordersAll.find(x=>String(x.id)===String(id));if(o)printInvoice(o)},
- custOrders:id=>{orderState.q=id;orderState.status="";orderState.page=1;go("orders")},
- reportPeriod:id=>{reportPeriod=id;renderReports()},
- reviewFilter:id=>{reviewFilter=id;loadReviews()},
- reviewApprove:id=>setReviewStatus(id,"Approved"),
- reviewHide:id=>setReviewStatus(id,"Hidden"),
- reviewEdit:id=>editReview(id),
- revSaveEdit:()=>saveReviewEdit(),
- revCancelEdit:()=>cancelReviewEdit(),
- reviewDelete:id=>deleteReview(id),
- couponToggle:async id=>{
-  const c=couponsData.find(x=>x.code===id);
-  if(!c)return;
-  const {error}=await db.from("coupons").update({active:!c.active}).eq("code",id);
-  if(error){toast("আপডেট হয়নি: "+error.message,"err");return}
-  await loadCoupons();
- },
- couponDelete:async id=>{
-  if(!confirm("\""+id+"\" কুপনটি মুছে ফেলবে? (আগের অর্ডারের হিসাব বদলাবে না)"))return;
-  const {error}=await db.from("coupons").delete().eq("code",id);
-  if(error){toast("মোছা যায়নি: "+error.message,"err");return}
-  await loadCoupons();
-  toast("কুপন মোছা হয়েছে","ok");
- },
- randomCode:()=>{$("cpCode").value=randomCode()},
- saveSite:saveSite,
- galDel:id=>{galleryList.splice(Number(id),1);renderGallery()},
- photoDel:id=>photoDel(id),
- partnerOk:id=>setPartner(id,"Approved"),
- partnerNo:id=>setPartner(id,"Rejected"),
- partnerPay:id=>payPartner(id),
- partnerSusp:id=>setPartner(id,"Suspended"),
- pSaveSettings:()=>saveSettings(),
- pFlagOk:id=>flagOk(id),
- pVerifyOk:id=>setVerify(id,"Verified"),
- pVerifyNo:id=>setVerify(id,"Rejected"),
- pFlagNo:id=>flagNo(id),
- partnerBonus:id=>showBonus(id),
- partnerVoid:id=>voidPartner(id),
- partnerRemove:id=>removePartner(id),
- pcSave:id=>savePc(id),
- colorAdd:()=>{colorRows.push({name:"",hex:"#000000"});renderColorRows()},
- colorDel:i=>{colorRows.splice(Number(i),1);renderColorRows()},
- faqAdd:()=>{faqRows.push({q:"",a:""});renderFaqRows()},
- faqDel:i=>{faqRows.splice(Number(i),1);renderFaqRows()},
- sizePreset:()=>{
-  const t=$("pfSizeType").value;
-  if(SIZE_PRESETS[t]){sizeRows=SIZE_PRESETS[t].map(function(l){return {label:l}});renderSizeRows();toast("সাইজ বসানো হয়েছে, প্রয়োজন হলে বদলান","ok")}
-  else toast("এই ধরনে নিজের সাইজ লিখুন","ok");
- },
- sizeAdd:()=>{sizeRows.push({label:""});renderSizeRows()},
- sizeDel:i=>{sizeRows.splice(Number(i),1);renderSizeRows()},
- receipt:id=>downloadReceipt(id),
- receiptPrint:id=>printReceipt(id),
- resetSettings:async()=>{
-  S=Object.assign({},DEFAULTS);
-  try{localStorage.removeItem(SETTINGS_KEY)}catch(e){}
-  fillSettingsForm();
-  await loadServerSettings();
-  toast("ডিফল্ট সেটিংস ফিরেছে (ডেলিভারি চার্জ সার্ভারের মানই থাকবে)","ok");
- }
-};
-document.addEventListener("click",e=>{
- const a=e.target.closest("[data-act]");
- if(a){
-  const fn=actions[a.dataset.act];
-  if(fn){e.preventDefault();fn(a.dataset.id||"",a)}
-  return;
- }
- const g=e.target.closest("[data-go]");
- if(g)go(g.dataset.go);
-});
-
-/* ---------- শুরু ---------- */
-checkSession();
-async function checkSession(){
- const {data}=await db.auth.getSession();
- if(data&&data.session)applySession(data.session);
-}
-</script>
-</body>
-</html>
+   const ext=(file.name.split(".").pop()||"jpg"
