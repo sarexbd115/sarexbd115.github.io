@@ -160,6 +160,7 @@ summary{list-style:none}
   <a href="#orders">🧾 অর্ডার</a>
   <a href="#customers">👥 কাস্টমার</a>
   <a href="#alerts">📣 নম্বর তালিকা</a>
+  <a href="#partners">🤝 পার্টনার</a>
   <a href="#reports">📊 রিপোর্ট</a>
   <a href="#reviews">⭐ রিভিউ <span class="badge warn" id="revBadge" hidden></span></a>
   <a href="#coupons">🏷️ কুপন</a>
@@ -303,6 +304,21 @@ summary{list-style:none}
    <div class="altpane" data-tab="sub" hidden><div id="subList"></div></div>
   </section>
 
+  <!-- পার্টনার -->
+  <section id="view-partners" class="view hidden">
+   <div class="pagehead"><h2>🤝 পার্টনার</h2></div>
+   <h3 style="margin:10px 0 6px">পার্টনার তালিকা</h3>
+   <div id="pList"></div>
+   <h3 style="margin:18px 0 6px">পণ্যের কমিশন (টাকা)</h3>
+   <div id="pcList"></div>
+   <h3 style="margin:18px 0 6px">সেটিংস (বোনাস, কুপন, সন্দেহজনক অর্ডার)</h3>
+   <div id="pSettings"></div>
+   <h3 style="margin:18px 0 6px">পর্যালোচনার অর্ডার (সন্দেহজনক)</h3>
+   <div id="pRev"></div>
+   <h3 style="margin:18px 0 6px">কার্যক্রমের লগ</h3>
+   <div id="pLog"></div>
+  </section>
+
   <!-- রিপোর্ট -->
   <section id="view-reports" class="view hidden">
    <div class="pagehead"><h2>📊 রিপোর্ট</h2></div>
@@ -404,7 +420,7 @@ const IMAGE_TYPES={"image/jpeg":"jpg","image/png":"png","image/webp":"webp"};
 const STATUSES=["Pending","Confirmed","Shipped","Delivered","Cancelled"];
 const STATUS_CLASS={Pending:"warn",Confirmed:"blue",Shipped:"purple",Delivered:"ok",Cancelled:"err"};
 const PAGE_SIZE=20;
-const VIEWS=["home","products","productForm","orders","orderDetail","customers","alerts","reports","reviews","coupons","content","settings"];
+const VIEWS=["partners","home","products","productForm","orders","orderDetail","customers","alerts","reports","reviews","coupons","content","settings"];
 
 /* ---------- সেটিংস ---------- */
 const DEFAULTS={shopName:"SAREXBD",whatsapp:"01610244533",address:"",deliveryInside:80,deliveryOutside:120,lowStock:5};
@@ -618,6 +634,7 @@ function route(){
  else if(view==="orderDetail")renderOrderDetail(arg);
  else if(view==="customers")renderCustomers();
  else if(view==="alerts")loadAlerts();
+ else if(view==="partners"){loadPartners();loadPartnerExtras();}
  else if(view==="reports")renderReports();
  else if(view==="reviews")loadReviews();
  else if(view==="coupons")loadCoupons();
@@ -1338,6 +1355,111 @@ async function photoDel(id){
  toast("ছবি মুছে ফেলা হয়েছে","ok");
  loadReviews();
 }
+function partnerCtl(x){
+ const id=x.id;
+ if(x.status==="Approved") return '<button class="btn dark" data-act="partnerBonus" data-id="'+id+'">এই মাসের বোনাস</button> <button class="btn danger" data-act="partnerSusp" data-id="'+id+'">স্থগিত করুন</button> <button class="btn dark" data-act="partnerVoid" data-id="'+id+'">শুধু কমিশন বাতিল</button> <button class="btn danger" data-act="partnerRemove" data-id="'+id+'">বাতিল + কমিশন বাতিল</button>';
+ if(x.status==="Suspended") return '<button class="btn" data-act="partnerOk" data-id="'+id+'">পুনরায় চালু</button> <button class="btn danger" data-act="partnerRemove" data-id="'+id+'">বাতিল + কমিশন বাতিল</button>';
+ return '';
+}
+async function voidPartner(id){
+ const r=await db.from("partner_commissions").update({status:"Void"}).eq("partner_id",Number(id)).in("status",["Pending","Approved"]);
+ if(r.error){toast("ব্যর্থ: "+r.error.message,"err",4000);return}
+ toast("কমিশন বাতিল করা হয়েছে","ok");
+ loadPartners();
+}
+async function removePartner(id){
+ if(!confirm("এই পার্টনারকে বাতিল ও সব পাওনা কমিশন বাতিল করবেন?"))return;
+ await db.from("partners").update({status:"Rejected"}).eq("id",Number(id));
+ await voidPartner(id);
+}
+async function loadPartners(){
+ const pr=await db.from("partners").select("*").order("created_at",{ascending:false});
+ const cm=await db.from("partner_commissions").select("partner_id,amount,status");
+ const due={};
+ (cm.data||[]).forEach(function(c){ if(c.status==="Pending"||c.status==="Approved"){due[c.partner_id]=(due[c.partner_id]||0)+Number(c.amount)} });
+ $("pList").innerHTML=(pr.data&&pr.data.length)?pr.data.map(function(x){
+  const ok=x.status==="Pending"?'<button class="btn" data-act="partnerOk" data-id="'+x.id+'">অনুমোদন</button> <button class="btn danger" data-act="partnerNo" data-id="'+x.id+'">বাতিল</button>':'';
+  const pay=(x.status==="Approved"&&due[x.id])?'<button class="btn dark" data-act="partnerPay" data-id="'+x.id+'">পরিশোধ করুন</button>':'';
+  return '<div class="card"><b>'+esc(x.name)+'</b> · '+esc(x.phone)+'<div class="sub">বিকাশ: '+esc(x.bkash_number)+' · কোড: <b>'+esc(x.partner_code)+'</b> · '+esc(x.status)+'</div><div class="sub">পাওনা কমিশন: ৳'+(due[x.id]||0)+'</div><div class="btnrow" style="margin-top:8px">'+ok+pay+partnerCtl(x)+'</div></div>';
+ }).join(""):'<p class="sub">এখনো কোনো পার্টনার নেই।</p>';
+ const prods=await db.from("products").select("id,name").order("id");
+ const pc=await db.from("product_commissions").select("product_id,amount");
+ const pm={};
+ (pc.data||[]).forEach(function(x){pm[x.product_id]=x.amount});
+ $("pcList").innerHTML=(prods.data||[]).map(function(p){
+  return '<div class="card" style="display:flex;gap:8px;align-items:center"><div style="flex:1"><b>'+esc(p.name)+'</b></div><input data-pcid="'+p.id+'" type="number" min="0" value="'+(pm[p.id]||0)+'" style="width:110px"><button class="btn dark" data-act="pcSave" data-id="'+p.id+'">সেভ</button></div>';
+ }).join("");
+}
+const PS_LABELS={bonus_percent:"বোনাসের শতাংশ (%)",bonus_target:"বোনাসের জন্য কত সফল ডেলিভারি লাগবে",coupon_percent:"পার্টনার কুপনে ক্রেতার ছাড় (%)",suspicious_limit:"সন্দেহজনক: একই ফোন থেকে সর্বোচ্চ অর্ডার",suspicious_hours:"সন্দেহজনক: কত ঘণ্টার মধ্যে"};
+async function loadPartnerExtras(){
+ const s=await db.from("partner_settings").select("key,value");
+ $("pSettings").innerHTML=(s.data||[]).map(function(x){
+  return '<div class="card" style="display:flex;gap:8px;align-items:center"><div style="flex:1">'+esc(PS_LABELS[x.key]||x.key)+'</div><input data-setkey="'+esc(x.key)+'" type="number" step="any" value="'+x.value+'" style="width:100px"></div>';
+ }).join("")+'<button class="btn" data-act="pSaveSettings" type="button">সেটিংস সেভ করুন</button>';
+ const rv=await db.from("partner_commissions").select("order_id,amount").eq("status","Review");
+ $("pRev").innerHTML=(rv.data&&rv.data.length)?rv.data.map(function(c){
+  return '<div class="card"><b>অর্ডার #'+esc(c.order_id)+'</b> · কমিশন ৳'+esc(c.amount)+'<div class="btnrow" style="margin-top:8px"><button class="btn" data-act="pFlagOk" data-id="'+esc(c.order_id)+'">ঠিক আছে (কমিশন চালু)</button> <button class="btn danger" data-act="pFlagNo" data-id="'+esc(c.order_id)+'">বাতিল (কমিশন বাতিল)</button></div></div>';
+ }).join(""):'<p class="sub">কোনো সন্দেহজনক অর্ডার নেই।</p>';
+ const lg=await db.from("partner_log").select("action,details,created_at").order("created_at",{ascending:false}).limit(30);
+ $("pLog").innerHTML=(lg.data&&lg.data.length)?lg.data.map(function(l){
+  return '<div class="card"><b>'+esc(l.action)+'</b> · '+esc(l.details)+'<div class="sub">'+esc(fmtDate(l.created_at))+'</div></div>';
+ }).join(""):'<p class="sub">এখনো কোনো লগ নেই।</p>';
+}
+async function saveSettings(){
+ const inputs=document.querySelectorAll('[data-setkey]');
+ for(const i of inputs){
+  const r=await db.from("partner_settings").update({value:Number(i.value)}).eq("key",i.dataset.setkey);
+  if(r.error){toast("ব্যর্থ: "+r.error.message,"err",4000);return}
+ }
+ toast("সেটিংস সেভ হয়েছে","ok");
+}
+async function flagOk(orderId){
+ await db.from("order_flags").delete().eq("order_id",Number(orderId));
+ const r=await db.from("partner_commissions").update({status:"Pending"}).eq("order_id",Number(orderId)).eq("status","Review");
+ if(r.error){toast("ব্যর্থ: "+r.error.message,"err",4000);return}
+ toast("কমিশন চালু হয়েছে","ok");
+ loadPartnerExtras();
+}
+async function flagNo(orderId){
+ const r=await db.from("partner_commissions").update({status:"Void"}).eq("order_id",Number(orderId)).eq("status","Review");
+ if(r.error){toast("ব্যর্থ: "+r.error.message,"err",4000);return}
+ toast("কমিশন বাতিল হয়েছে","ok");
+ loadPartnerExtras();
+}
+async function showBonus(pid){
+ const d=new Date();
+ const iso=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-01";
+ const r=await db.rpc("partner_month_bonus",{p_partner_id:Number(pid),p_month:iso});
+ if(r.error){toast("ব্যর্থ: "+r.error.message,"err",4000);return}
+ const b=r.data;
+ alert("এই মাসের হিসাব\nসফল ডেলিভারি: "+b.deliveries+" (লক্ষ্য: "+b.target+")\nমোট কমিশন: ৳"+b.total+"\nবোনাস: ৳"+b.bonus);
+}
+async function setPartner(id,status){
+ const r=await db.from("partners").update({status:status}).eq("id",id);
+ if(r.error){toast("ব্যর্থ: "+r.error.message,"err",4000);return}
+ toast("আপডেট হয়েছে","ok");
+ loadPartners();
+}
+async function savePc(id){
+ const inp=document.querySelector('[data-pcid="'+id+'"]');
+ const amt=Number(inp.value||0);
+ const r=await db.from("product_commissions").upsert([{product_id:Number(id),amount:amt}],{onConflict:"product_id"});
+ if(r.error){toast("সেভ হয়নি: "+r.error.message,"err",4000);return}
+ toast("কমিশন সেভ হয়েছে","ok");
+}
+async function payPartner(id){
+ const cm=await db.from("partner_commissions").select("id,amount").eq("partner_id",id).in("status",["Pending","Approved"]);
+ const total=(cm.data||[]).reduce(function(s,c){return s+Number(c.amount)},0);
+ if(!total){toast("পাওনা নেই","err");return}
+ const trx=prompt("পাওনা ৳"+total+"। বিকাশের Transaction ID লিখুন:","");
+ if(trx===null)return;
+ const ids=(cm.data||[]).map(function(c){return c.id});
+ const u=await db.from("partner_commissions").update({status:"Paid"}).in("id",ids);
+ if(u.error){toast("ব্যর্থ: "+u.error.message,"err",4000);return}
+ await db.from("partner_payouts").insert([{partner_id:Number(id),amount:total,trx_id:trx}]);
+ toast("পরিশোধ রেকর্ড হয়েছে","ok");
+ loadPartners();
+}
 async function setReviewStatus(id,status){
  const {error}=await db.from("reviews").update({status:status}).eq("id",id);
  if(error){toast("আপডেট হয়নি: "+error.message,"err");return}
@@ -1450,7 +1572,7 @@ const SITE_GROUPS=[
    ["footer_tagline","ফুটারের ট্যাগলাইন"],
    ["delivery_note","পণ্য ভেদে ডেলিভারির সময়ের নোট","area"]
  ]],
- ["ক্যাটাগরি (সাইটের বাটন)",[["cat1_icon","ক্যাটাগরি 1 — আইকন"],["cat1_title","ক্যাটাগরি 1 — নাম"],["cat1_sub","ক্যাটাগরি 1 — বাংলা নাম"],["cat2_icon","ক্যাটাগরি 2 — আইকন"],["cat2_title","ক্যাটাগরি 2 — নাম"],["cat2_sub","ক্যাটাগরি 2 — বাংলা নাম"],["cat3_icon","ক্যাটাগরি 3 — আইকন"],["cat3_title","ক্যাটাগরি 3 — নাম"],["cat3_sub","ক্যাটাগরি 3 — বাংলা নাম"],["cat4_icon","ক্যাটাগরি 4 — আইকন"],["cat4_title","ক্যাটাগরি 4 — নাম"],["cat4_sub","ক্যাটাগরি 4 — বাংলা নাম"],["cat5_icon","ক্যাটাগরি 5 — আইকন"],["cat5_title","ক্যাটাগরি 5 — নাম"],["cat5_sub","ক্যাটাগরি 5 — বাংলা নাম"],["cat6_icon","ক্যাটাগরি 6 — আইকন"],["cat6_title","ক্যাটাগরি 6 — নাম"],["cat6_sub","ক্যাটাগরি 6 — বাংলা নাম"]]],["ভরসার কার্ড (ওপরের তিনটি)",[["trust1_icon","কার্ড 1 — আইকন"],["trust1_title","কার্ড 1 — শিরোনাম"],["trust1_sub","কার্ড 1 — ছোট লেখা"],["trust2_icon","কার্ড 2 — আইকন"],["trust2_title","কার্ড 2 — শিরোনাম"],["trust2_sub","কার্ড 2 — ছোট লেখা"],["trust3_icon","কার্ড 3 — আইকন"],["trust3_title","কার্ড 3 — শিরোনাম"],["trust3_sub","কার্ড 3 — ছোট লেখা"]]],["ফ্ল্যাশ সেল (ব্যানার)",[["flash_on","চালু করতে yes লিখুন (খালি = বন্ধ)"],["flash_text","ব্যানারের লেখা"],["flash_end","শেষ হওয়ার সময় (যেমন 2026-10-20T23:59)"]]],["হোম ব্যানার (প্রচার)",[["promo_banner","হোমে উপরের প্রচার ব্যানার লেখা (খালি রাখলে দেখাবে না)","area"]]],["পলিসি ও সহায়তা পাতা (ফুটার থেকে খুলবে)",[["privacy_policy","১. প্রাইভেসি পলিসি","area"],["delivery_policy","২. ডেলিভারি পলিসি","area"],["refund_policy","৪. রিফান্ড পলিসি","area"],["terms_policy","৫. শর্তাবলি (Terms & Conditions)","area"],["care_guide","৬. লেদার যত্ন গাইড","area"],["contact_policy","৭. যোগাযোগের নিয়ম (যোগাযোগ পাতায়ও দেখাবে)","area"]]],["রিটার্ন পলিসি",[["return_policy","রিটার্ন পলিসি (পণ্য পাতা ও ফুটার)","area"]]],["রং",[["theme_gold","সোনালি রং","color"],["theme_bg","ব্যাকগ্রাউন্ডের রং","color"]]]
+ ["ক্যাটাগরি (সাইটের বাটন)",[["cat1_icon","ক্যাটাগরি 1 — আইকন"],["cat1_title","ক্যাটাগরি 1 — নাম"],["cat1_sub","ক্যাটাগরি 1 — বাংলা নাম"],["cat2_icon","ক্যাটাগরি 2 — আইকন"],["cat2_title","ক্যাটাগরি 2 — নাম"],["cat2_sub","ক্যাটাগরি 2 — বাংলা নাম"],["cat3_icon","ক্যাটাগরি 3 — আইকন"],["cat3_title","ক্যাটাগরি 3 — নাম"],["cat3_sub","ক্যাটাগরি 3 — বাংলা নাম"],["cat4_icon","ক্যাটাগরি 4 — আইকন"],["cat4_title","ক্যাটাগরি 4 — নাম"],["cat4_sub","ক্যাটাগরি 4 — বাংলা নাম"],["cat5_icon","ক্যাটাগরি 5 — আইকন"],["cat5_title","ক্যাটাগরি 5 — নাম"],["cat5_sub","ক্যাটাগরি 5 — বাংলা নাম"],["cat6_icon","ক্যাটাগরি 6 — আইকন"],["cat6_title","ক্যাটাগরি 6 — নাম"],["cat6_sub","ক্যাটাগরি 6 — বাংলা নাম"]]],["ভরসার কার্ড (ওপরের তিনটি)",[["trust1_icon","কার্ড 1 — আইকন"],["trust1_title","কার্ড 1 — শিরোনাম"],["trust1_sub","কার্ড 1 — ছোট লেখা"],["trust2_icon","কার্ড 2 — আইকন"],["trust2_title","কার্ড 2 — শিরোনাম"],["trust2_sub","কার্ড 2 — ছোট লেখা"],["trust3_icon","কার্ড 3 — আইকন"],["trust3_title","কার্ড 3 — শিরোনাম"],["trust3_sub","কার্ড 3 — ছোট লেখা"]]],["ফ্ল্যাশ সেল (ব্যানার)",[["flash_on","চালু করতে yes লিখুন (খালি = বন্ধ)"],["flash_text","ব্যানারের লেখা"],["flash_end","শেষ হওয়ার সময় (যেমন 2026-10-20T23:59)"]]],["হোম ব্যানার (প্রচার)",[["promo_banner","হোমে উপরের প্রচার ব্যানার লেখা (খালি রাখলে দেখাবে না)","area"]]],["পলিসি ও সহায়তা পাতা (ফুটার থেকে খুলবে)",[["privacy_policy","১. প্রাইভেসি পলিসি","area"],["delivery_policy","২. ডেলিভারি পলিসি","area"],["refund_policy","৪. রিফান্ড পলিসি","area"],["terms_policy","৫. শর্তাবলি (Terms & Conditions)","area"],["care_guide","৬. লেদার যত্ন গাইড","area"],["contact_policy","৭. যোগাযোগের নিয়ম (যোগাযোগ পাতায়ও দেখাবে)","area"]]],["পার্টনার নিয়মাবলি",[["partner_rules","পার্টনার নিয়মাবলি (পার্টনার হোন পাতায় দেখাবে)","area"]]],["রিটার্ন পলিসি",[["return_policy","রিটার্ন পলিসি (পণ্য পাতা ও ফুটার)","area"]]],["রং",[["theme_gold","সোনালি রং","color"],["theme_bg","ব্যাকগ্রাউন্ডের রং","color"]]]
 ];
 const SITE_FIELDS=SITE_GROUPS.flatMap(g=>g[1]);
 
@@ -1561,87 +1683,4 @@ const actions={
  closeDrawer:closeDrawer,
  logout:async()=>{await db.auth.signOut()},
  editProduct:id=>go("productForm/"+id),
- toggleProduct:id=>toggleProduct(id),
- deleteProduct:id=>deleteProduct(id),
- bulkApply:()=>{
-  const v=$("bulkDiscount").value.trim();
-  if(v===""){toast("ছাড়ের হার লিখুন","err");return}
-  setAllDiscount(Number(v));
- },
- bulkClear:()=>setAllDiscount(0),
- prodCat:id=>{prodState.cat=id;renderProducts()},
- orderChip:id=>{orderState.status=id;orderState.page=1;renderOrders()},
- moreOrders:()=>{orderState.page++;renderOrders()},
- refreshOrders:async()=>{await Promise.all([loadOrdersAll(),loadProducts()]);renderOrders();toast("অর্ডার নতুন করে আনা হয়েছে","ok")},
- exportCsv:exportCsv,
- updateStatus:(id,btn)=>setOrderStatus(id,$("odStatus").value,btn),
- cancelOrder:(id,btn)=>{if(confirm("অর্ডারটি Cancelled করবে? (স্টক ফেরত আসবে)"))setOrderStatus(id,"Cancelled",btn)},
- invoice:id=>{const o=ordersAll.find(x=>String(x.id)===String(id));if(o)printInvoice(o)},
- custOrders:id=>{orderState.q=id;orderState.status="";orderState.page=1;go("orders")},
- reportPeriod:id=>{reportPeriod=id;renderReports()},
- reviewFilter:id=>{reviewFilter=id;loadReviews()},
- reviewApprove:id=>setReviewStatus(id,"Approved"),
- reviewHide:id=>setReviewStatus(id,"Hidden"),
- reviewEdit:id=>editReview(id),
- revSaveEdit:()=>saveReviewEdit(),
- revCancelEdit:()=>cancelReviewEdit(),
- reviewDelete:id=>deleteReview(id),
- couponToggle:async id=>{
-  const c=couponsData.find(x=>x.code===id);
-  if(!c)return;
-  const {error}=await db.from("coupons").update({active:!c.active}).eq("code",id);
-  if(error){toast("আপডেট হয়নি: "+error.message,"err");return}
-  await loadCoupons();
- },
- couponDelete:async id=>{
-  if(!confirm("\""+id+"\" কুপনটি মুছে ফেলবে? (আগের অর্ডারের হিসাব বদলাবে না)"))return;
-  const {error}=await db.from("coupons").delete().eq("code",id);
-  if(error){toast("মোছা যায়নি: "+error.message,"err");return}
-  await loadCoupons();
-  toast("কুপন মোছা হয়েছে","ok");
- },
- randomCode:()=>{$("cpCode").value=randomCode()},
- saveSite:saveSite,
- galDel:id=>{galleryList.splice(Number(id),1);renderGallery()},
- photoDel:id=>photoDel(id),
- colorAdd:()=>{colorRows.push({name:"",hex:"#000000"});renderColorRows()},
- colorDel:i=>{colorRows.splice(Number(i),1);renderColorRows()},
- faqAdd:()=>{faqRows.push({q:"",a:""});renderFaqRows()},
- faqDel:i=>{faqRows.splice(Number(i),1);renderFaqRows()},
- sizePreset:()=>{
-  const t=$("pfSizeType").value;
-  if(SIZE_PRESETS[t]){sizeRows=SIZE_PRESETS[t].map(function(l){return {label:l}});renderSizeRows();toast("সাইজ বসানো হয়েছে, প্রয়োজন হলে বদলান","ok")}
-  else toast("এই ধরনে নিজের সাইজ লিখুন","ok");
- },
- sizeAdd:()=>{sizeRows.push({label:""});renderSizeRows()},
- sizeDel:i=>{sizeRows.splice(Number(i),1);renderSizeRows()},
- receipt:id=>downloadReceipt(id),
- receiptPrint:id=>printReceipt(id),
- resetSettings:async()=>{
-  S=Object.assign({},DEFAULTS);
-  try{localStorage.removeItem(SETTINGS_KEY)}catch(e){}
-  fillSettingsForm();
-  await loadServerSettings();
-  toast("ডিফল্ট সেটিংস ফিরেছে (ডেলিভারি চার্জ সার্ভারের মানই থাকবে)","ok");
- }
-};
-document.addEventListener("click",e=>{
- const a=e.target.closest("[data-act]");
- if(a){
-  const fn=actions[a.dataset.act];
-  if(fn){e.preventDefault();fn(a.dataset.id||"",a)}
-  return;
- }
- const g=e.target.closest("[data-go]");
- if(g)go(g.dataset.go);
-});
-
-/* ---------- শুরু ---------- */
-checkSession();
-async function checkSession(){
- const {data}=await db.auth.getSession();
- if(data&&data.session)applySession(data.session);
-}
-</script>
-</body>
-</html>
+ toggleProduct:id=>togglePr
