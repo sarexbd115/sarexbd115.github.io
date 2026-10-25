@@ -297,12 +297,10 @@ summary{list-style:none}
   <!-- নম্বর তালিকা -->
   <section id="view-alerts" class="view hidden">
    <div class="pagehead"><h2>📣 নম্বর তালিকা</h2></div>
-   <h3 style="margin:10px 0 6px">স্টক এলে জানাবো (কোন পণ্যের জন্য)</h3>
-   <div id="alertList"></div>
-   <h3 style="margin:18px 0 6px">রিটার্নের আবেদন</h3>
-   <div id="retList"></div>
-   <h3 style="margin:18px 0 6px">খবর পান (নতুন কালেকশনের গ্রাহক)</h3>
-   <div id="subList"></div>
+   <div class="chips" id="altChips" style="margin:8px 0 12px"></div>
+   <div class="altpane" data-tab="ret"><div id="retList"></div></div>
+   <div class="altpane" data-tab="stock" hidden><div id="alertList"></div></div>
+   <div class="altpane" data-tab="sub" hidden><div id="subList"></div></div>
   </section>
 
   <!-- রিপোর্ট -->
@@ -561,7 +559,22 @@ function setActiveNav(view){
  document.querySelectorAll("#drawer a").forEach(a=>a.classList.toggle("active",a.getAttribute("href")==="#"+view));
 }
 
+const ALT_TABS=[["ret","↩️ রিটার্ন আবেদন"],["stock","🔔 স্টক এলে জানাবো"],["sub","📨 খবর পান"]];
+let altTab="ret";
+function setAltTab(t){
+ altTab=t;
+ document.querySelectorAll(".altpane").forEach(function(el){el.hidden=el.dataset.tab!==t});
+ const box=$("altChips");
+ if(box)box.innerHTML=ALT_TABS.map(function(x){
+  return '<button class="chip'+(x[0]===t?' on':'')+'" data-alt="'+x[0]+'" type="button">'+x[1]+'</button>';
+ }).join("");
+}
+document.addEventListener("click",function(e){
+ const b=e.target.closest("[data-alt]");
+ if(b)setAltTab(b.dataset.alt);
+});
 async function loadAlerts(){
+ setAltTab(altTab);
  const subs=await db.from("subscribers").select("id,phone,created_at").order("created_at",{ascending:false});
  const al=await db.from("stock_alerts").select("id,phone,product_id,created_at").order("created_at",{ascending:false});
  const pr=await db.from("products").select("id,name");
@@ -572,9 +585,12 @@ async function loadAlerts(){
    return '<div class="card"><b>'+esc(a.phone)+'</b><div>পণ্য: '+esc(names[a.product_id]||"অজানা পণ্য")+' (আইডি: '+esc(a.product_id)+')</div><div class="sub">'+esc(fmtDate(a.created_at))+'</div></div>';
   }).join(""):'<p class="sub">এখনো কেউ স্টক-জানানোর নম্বর দেয়নি।</p>');
  const rr=await db.from("return_requests").select("id,order_id,phone,reason,created_at").order("created_at",{ascending:false});
+ const rp=(rr.data&&rr.data.length)?await db.from("return_photos").select("request_id,url").in("request_id",rr.data.map(function(x){return x.id})):{data:[]};
+ const pm={};
+ (rp.data||[]).forEach(function(q){(pm[q.request_id]=pm[q.request_id]||[]).push(q.url)});
  $("retList").innerHTML=rr.error?'<p class="sub">লোড হয়নি: '+esc(rr.error.message)+'</p>':
   ((rr.data&&rr.data.length)?rr.data.map(function(x){
-   return '<div class="card"><b>অর্ডার #'+esc(x.order_id)+'</b> · '+esc(x.phone)+'<div style="margin-top:6px">'+esc(x.reason)+'</div><div class="sub">'+esc(fmtDate(x.created_at))+'</div></div>';
+   return '<div class="card"><b>অর্ডার #'+esc(x.order_id)+'</b> · '+esc(x.phone)+'<div style="margin-top:6px">'+esc(x.reason)+'</div>'+(pm[x.id]||[]).map(function(u){return '<a href="'+esc(u)+'" target="_blank"><img src="'+esc(u)+'" style="width:80px;height:80px;object-fit:cover;border-radius:8px;margin:4px;border:1px solid #d4af37"></a>'}).join('')+'<div class="sub">'+esc(fmtDate(x.created_at))+'</div></div>';
   }).join(""):'<p class="sub">এখনো কোনো রিটার্নের আবেদন নেই।</p>');
  $("subList").innerHTML=subs.error?'<p class="sub">লোড হয়নি: '+esc(subs.error.message)+'</p>':
   ((subs.data&&subs.data.length)?subs.data.map(function(s){
