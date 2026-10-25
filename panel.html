@@ -159,6 +159,7 @@ summary{list-style:none}
   <a href="#products">📦 প্রোডাক্ট</a>
   <a href="#orders">🧾 অর্ডার</a>
   <a href="#customers">👥 কাস্টমার</a>
+  <a href="#alerts">📣 নম্বর তালিকা</a>
   <a href="#reports">📊 রিপোর্ট</a>
   <a href="#reviews">⭐ রিভিউ <span class="badge warn" id="revBadge" hidden></span></a>
   <a href="#coupons">🏷️ কুপন</a>
@@ -293,6 +294,15 @@ summary{list-style:none}
    <div id="custList"></div>
   </section>
 
+  <!-- নম্বর তালিকা -->
+  <section id="view-alerts" class="view hidden">
+   <div class="pagehead"><h2>📣 নম্বর তালিকা</h2></div>
+   <h3 style="margin:10px 0 6px">স্টক এলে জানাবো (কোন পণ্যের জন্য)</h3>
+   <div id="alertList"></div>
+   <h3 style="margin:18px 0 6px">খবর পান (নতুন কালেকশনের গ্রাহক)</h3>
+   <div id="subList"></div>
+  </section>
+
   <!-- রিপোর্ট -->
   <section id="view-reports" class="view hidden">
    <div class="pagehead"><h2>📊 রিপোর্ট</h2></div>
@@ -394,7 +404,7 @@ const IMAGE_TYPES={"image/jpeg":"jpg","image/png":"png","image/webp":"webp"};
 const STATUSES=["Pending","Confirmed","Shipped","Delivered","Cancelled"];
 const STATUS_CLASS={Pending:"warn",Confirmed:"blue",Shipped:"purple",Delivered:"ok",Cancelled:"err"};
 const PAGE_SIZE=20;
-const VIEWS=["home","products","productForm","orders","orderDetail","customers","reports","reviews","coupons","content","settings"];
+const VIEWS=["home","products","productForm","orders","orderDetail","customers","alerts","reports","reviews","coupons","content","settings"];
 
 /* ---------- সেটিংস ---------- */
 const DEFAULTS={shopName:"SAREXBD",whatsapp:"01610244533",address:"",deliveryInside:80,deliveryOutside:120,lowStock:5};
@@ -549,6 +559,21 @@ function setActiveNav(view){
  document.querySelectorAll("#drawer a").forEach(a=>a.classList.toggle("active",a.getAttribute("href")==="#"+view));
 }
 
+async function loadAlerts(){
+ const subs=await db.from("subscribers").select("id,phone,created_at").order("created_at",{ascending:false});
+ const al=await db.from("stock_alerts").select("id,phone,product_id,created_at").order("created_at",{ascending:false});
+ const pr=await db.from("products").select("id,name");
+ const names={};
+ (pr.data||[]).forEach(function(x){names[x.id]=x.name});
+ $("alertList").innerHTML=al.error?'<p class="sub">লোড হয়নি: '+esc(al.error.message)+'</p>':
+  ((al.data&&al.data.length)?al.data.map(function(a){
+   return '<div class="card"><b>'+esc(a.phone)+'</b><div>পণ্য: '+esc(names[a.product_id]||"অজানা পণ্য")+' (আইডি: '+esc(a.product_id)+')</div><div class="sub">'+esc(fmtDate(a.created_at))+'</div></div>';
+  }).join(""):'<p class="sub">এখনো কেউ স্টক-জানানোর নম্বর দেয়নি।</p>');
+ $("subList").innerHTML=subs.error?'<p class="sub">লোড হয়নি: '+esc(subs.error.message)+'</p>':
+  ((subs.data&&subs.data.length)?subs.data.map(function(s){
+   return '<div class="card"><b>'+esc(s.phone)+'</b><div class="sub">'+esc(fmtDate(s.created_at))+'</div></div>';
+  }).join(""):'<p class="sub">এখনো কেউ খবর পেতে নম্বর দেয়নি।</p>');
+}
 function route(){
  if(!session)return;
  const raw=(location.hash||"#home").slice(1);
@@ -567,6 +592,7 @@ function route(){
  else if(view==="orders"){unseen=0;updateBadge();renderOrders()}
  else if(view==="orderDetail")renderOrderDetail(arg);
  else if(view==="customers")renderCustomers();
+ else if(view==="alerts")loadAlerts();
  else if(view==="reports")renderReports();
  else if(view==="reviews")loadReviews();
  else if(view==="coupons")loadCoupons();
@@ -1399,7 +1425,7 @@ const SITE_GROUPS=[
    ["footer_tagline","ফুটারের ট্যাগলাইন"],
    ["delivery_note","পণ্য ভেদে ডেলিভারির সময়ের নোট","area"]
  ]],
- ["ক্যাটাগরি (সাইটের বাটন)",[["cat1_icon","ক্যাটাগরি 1 — আইকন"],["cat1_title","ক্যাটাগরি 1 — নাম"],["cat1_sub","ক্যাটাগরি 1 — বাংলা নাম"],["cat2_icon","ক্যাটাগরি 2 — আইকন"],["cat2_title","ক্যাটাগরি 2 — নাম"],["cat2_sub","ক্যাটাগরি 2 — বাংলা নাম"],["cat3_icon","ক্যাটাগরি 3 — আইকন"],["cat3_title","ক্যাটাগরি 3 — নাম"],["cat3_sub","ক্যাটাগরি 3 — বাংলা নাম"],["cat4_icon","ক্যাটাগরি 4 — আইকন"],["cat4_title","ক্যাটাগরি 4 — নাম"],["cat4_sub","ক্যাটাগরি 4 — বাংলা নাম"],["cat5_icon","ক্যাটাগরি 5 — আইকন"],["cat5_title","ক্যাটাগরি 5 — নাম"],["cat5_sub","ক্যাটাগরি 5 — বাংলা নাম"],["cat6_icon","ক্যাটাগরি 6 — আইকন"],["cat6_title","ক্যাটাগরি 6 — নাম"],["cat6_sub","ক্যাটাগরি 6 — বাংলা নাম"]]],["ভরসার কার্ড (ওপরের তিনটি)",[["trust1_icon","কার্ড 1 — আইকন"],["trust1_title","কার্ড 1 — শিরোনাম"],["trust1_sub","কার্ড 1 — ছোট লেখা"],["trust2_icon","কার্ড 2 — আইকন"],["trust2_title","কার্ড 2 — শিরোনাম"],["trust2_sub","কার্ড 2 — ছোট লেখা"],["trust3_icon","কার্ড 3 — আইকন"],["trust3_title","কার্ড 3 — শিরোনাম"],["trust3_sub","কার্ড 3 — ছোট লেখা"]]],["ফ্ল্যাশ সেল (ব্যানার)",[["flash_on","চালু করতে yes লিখুন (খালি = বন্ধ)"],["flash_text","ব্যানারের লেখা"],["flash_end","শেষ হওয়ার সময় (যেমন 2026-10-20T23:59)"]]],["হোম ব্যানার (প্রচার)",[["promo_banner","হোমে উপরের প্রচার ব্যানার লেখা (খালি রাখলে দেখাবে না)","area"]]],["পলিসি ও সহায়তা পাতা (ফুটার থেকে খুলবে)",[["privacy_policy","১. প্রাইভেসি পলিসি","area"],["delivery_policy","২. ডেলিভারি পলিসি","area"],["refund_policy","৪. রিফান্ড পলিসি","area"],["terms_policy","৫. শর্তাবলি (Terms & Conditions)","area"],["care_guide","৬. লেদার যত্ন গাইড","area"]]],["রিটার্ন পলিসি",[["return_policy","রিটার্ন পলিসি (পণ্য পাতা ও ফুটার)","area"]]],["রং",[["theme_gold","সোনালি রং","color"],["theme_bg","ব্যাকগ্রাউন্ডের রং","color"]]]
+ ["ক্যাটাগরি (সাইটের বাটন)",[["cat1_icon","ক্যাটাগরি 1 — আইকন"],["cat1_title","ক্যাটাগরি 1 — নাম"],["cat1_sub","ক্যাটাগরি 1 — বাংলা নাম"],["cat2_icon","ক্যাটাগরি 2 — আইকন"],["cat2_title","ক্যাটাগরি 2 — নাম"],["cat2_sub","ক্যাটাগরি 2 — বাংলা নাম"],["cat3_icon","ক্যাটাগরি 3 — আইকন"],["cat3_title","ক্যাটাগরি 3 — নাম"],["cat3_sub","ক্যাটাগরি 3 — বাংলা নাম"],["cat4_icon","ক্যাটাগরি 4 — আইকন"],["cat4_title","ক্যাটাগরি 4 — নাম"],["cat4_sub","ক্যাটাগরি 4 — বাংলা নাম"],["cat5_icon","ক্যাটাগরি 5 — আইকন"],["cat5_title","ক্যাটাগরি 5 — নাম"],["cat5_sub","ক্যাটাগরি 5 — বাংলা নাম"],["cat6_icon","ক্যাটাগরি 6 — আইকন"],["cat6_title","ক্যাটাগরি 6 — নাম"],["cat6_sub","ক্যাটাগরি 6 — বাংলা নাম"]]],["ভরসার কার্ড (ওপরের তিনটি)",[["trust1_icon","কার্ড 1 — আইকন"],["trust1_title","কার্ড 1 — শিরোনাম"],["trust1_sub","কার্ড 1 — ছোট লেখা"],["trust2_icon","কার্ড 2 — আইকন"],["trust2_title","কার্ড 2 — শিরোনাম"],["trust2_sub","কার্ড 2 — ছোট লেখা"],["trust3_icon","কার্ড 3 — আইকন"],["trust3_title","কার্ড 3 — শিরোনাম"],["trust3_sub","কার্ড 3 — ছোট লেখা"]]],["ফ্ল্যাশ সেল (ব্যানার)",[["flash_on","চালু করতে yes লিখুন (খালি = বন্ধ)"],["flash_text","ব্যানারের লেখা"],["flash_end","শেষ হওয়ার সময় (যেমন 2026-10-20T23:59)"]]],["হোম ব্যানার (প্রচার)",[["promo_banner","হোমে উপরের প্রচার ব্যানার লেখা (খালি রাখলে দেখাবে না)","area"]]],["পলিসি ও সহায়তা পাতা (ফুটার থেকে খুলবে)",[["privacy_policy","১. প্রাইভেসি পলিসি","area"],["delivery_policy","২. ডেলিভারি পলিসি","area"],["refund_policy","৪. রিফান্ড পলিসি","area"],["terms_policy","৫. শর্তাবলি (Terms & Conditions)","area"],["care_guide","৬. লেদার যত্ন গাইড","area"],["contact_policy","৭. যোগাযোগের নিয়ম (যোগাযোগ পাতায়ও দেখাবে)","area"]]],["রিটার্ন পলিসি",[["return_policy","রিটার্ন পলিসি (পণ্য পাতা ও ফুটার)","area"]]],["রং",[["theme_gold","সোনালি রং","color"],["theme_bg","ব্যাকগ্রাউন্ডের রং","color"]]]
 ];
 const SITE_FIELDS=SITE_GROUPS.flatMap(g=>g[1]);
 
